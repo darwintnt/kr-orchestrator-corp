@@ -1,0 +1,28 @@
+{
+    "mcpServers": {
+        "codegraph": {
+            "args": [
+                "serve",
+                "--mcp"
+            ],
+            "command": "codegraph",
+            "type": "stdio"
+        },
+        "context7": {
+            "args": [
+                "-y",
+                "--package=@upstash/context7-mcp@2.2.5",
+                "--",
+                "context7-mcp"
+            ],
+            "command": "npx"
+        },
+        "engram": {
+            "args": [
+                "mcp",
+                "--tools=agent"
+            ],
+            "command": "/opt/homebrew/bin/engram"
+        }
+    }
+}

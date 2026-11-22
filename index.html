@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Calculadora de precio de venta al público para productos en Colombia: partida arancelaria, IVA, impuestos específicos y margen de ganancia sobre el costo." />
+  <title>Calculadora de Precio de Venta al Público — Colombia</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input[type="number"]::-webkit-outer-spin-button,
+    input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-100 text-slate-800 antialiased flex flex-col">
+
+  <!-- ===== Encabezado ===== -->
+  <header class="bg-slate-900 text-white">
+    <div class="max-w-4xl mx-auto px-4 py-8">
+      <h1 class="text-2xl md:text-3xl font-bold tracking-tight">Calculadora de Precio de Venta al Público</h1>
+      <p class="text-slate-300 mt-2 text-sm md:text-base">
+        Partida arancelaria &rarr; costo &rarr; precio de venta neto &rarr; impuestos (IVA y específicos) &rarr; precio final al cliente. Colombia.
+      </p>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto w-full px-4 py-8 space-y-6 flex-1">
+
+    <!-- ===== Formulario ===== -->
+    <form id="calcForm" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-5" autocomplete="off" novalidate>
+
+      <!-- Partida arancelaria -->
+      <div>
+        <label for="tariffSelect" class="block text-sm font-semibold text-slate-700 mb-1.5">Partida arancelaria</label>
+        <select id="tariffSelect" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+          <option value="">Selecciona una partida&hellip;</option>
+        </select>
+        <p class="text-xs text-slate-400 mt-1">Si tu producto no aparece, elegí &laquo;Otra partida&raquo; y configura los impuestos manualmente.</p>
+      </div>
+
+      <!-- Impuestos aplicables (partida de la tabla) -->
+      <div id="taxBadges" class="hidden">
+        <p class="text-sm font-semibold text-slate-700 mb-2">Impuestos que aplican a la partida:</p>
+        <div id="taxBadgesList" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Configuración manual -->
+      <div id="manualPanel" class="hidden border-t border-slate-200 pt-5 space-y-5">
+        <h3 class="text-sm font-semibold text-slate-700">Configuración manual de impuestos</h3>
+
+        <div class="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label for="manualIvaSelect" class="block text-sm font-medium text-slate-600 mb-1.5">IVA aplicable</label>
+            <select id="manualIvaSelect" class="w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500">
+              <option value="19" selected>19% (tarifa general)</option>
+              <option value="5">5% (canasta familiar)</option>
+              <option value="0">0% (bien excluido)</option>
+              <option value="custom">Otra tarifa&hellip;</option>
+            </select>
+          </div>
+          <div id="customIvaWrap" class="hidden">
+            <label for="customIvaInput" class="block text-sm font-medium text-slate-600 mb-1.5">% IVA personalizado</label>
+            <div class="relative">
+              <input id="customIvaInput" type="number" min="0" max="100" step="0.01" inputmode="decimal" placeholder="Ej: 8"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+              <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Impuestos específicos adicionales -->
+        <div>
+          <h4 class="text-sm font-medium text-slate-600 mb-2">Impuestos específicos adicionales <span class="text-slate-400 font-normal">(opcional)</span></h4>
+          <div id="manualTaxesList" class="space-y-2 mb-3"></div>
+          <div class="grid grid-cols-2 sm:grid-cols-12 gap-2 items-end">
+            <div class="col-span-2 sm:col-span-6">
+              <label for="taxNameInput" class="block text-xs font-medium text-slate-500 mb-1">Nombre (ej: ICUI)</label>
+              <input id="taxNameInput" type="text" placeholder="Sigla o nombre del impuesto"
+                class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+            </div>
+            <div class="sm:col-span-4">
+              <label for="taxValueInput" class="block text-xs font-medium text-slate-500 mb-1">% (sobre precio de venta neto)</label>
+              <div class="relative">
+                <input id="taxValueInput" type="number" min="0" max="1000" step="0.01" inputmode="decimal" placeholder="Ej: 15"
+                  class="w-full rounded-lg border border-slate-300 px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+                <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm">%</span>
+              </div>
+            </div>
+            <div class="sm:col-span-2">
+              <button type="button" id="addTaxBtn" title="Agregar impuesto"
+                class="w-full rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-lg font-bold px-3 py-2 transition-colors">+</button>
+            </div>
+          </div>
+          <p class="text-xs text-slate-400 mt-1.5">El impuesto específico se calcula como porcentaje sobre el precio de venta neto (base gravable).</p>
+        </div>
+      </div>
+
+      <!-- Costo y margen -->
+      <div class="grid md:grid-cols-2 gap-4 border-t border-slate-200 pt-5">
+        <div>
+          <label for="costInput" class="block text-sm font-medium text-slate-600 mb-1.5">Precio de compra / costo del producto</label>
+          <div class="relative">
+            <input id="costInput" type="number" min="0" step="0.01" inputmode="decimal" placeholder="Ej: 120000"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">COP</span>
+          </div>
+        </div>
+        <div>
+          <label for="marginInput" class="block text-sm font-medium text-slate-600 mb-1.5">% de ganancia deseada (sobre el costo)</label>
+          <div class="relative">
+            <input id="marginInput" type="number" min="0" max="1000" step="0.01" inputmode="decimal" placeholder="Ej: 30"
+              class="w-full rounded-lg border border-slate-300 px-3 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500" />
+            <span class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm font-medium">%</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">Precio de venta neto = costo &times; (1 + %ganancia). Los impuestos se calculan sobre ese precio neto.</p>
+        </div>
+      </div>
+
+      <!-- Errores -->
+      <div id="errorBox" class="hidden bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm">
+        <p class="font-semibold mb-1">Corrige los siguientes campos:</p>
+        <ul id="errorList" class="list-disc list-inside space-y-0.5"></ul>
+      </div>
+
+      <!-- Acciones -->
+      <div class="flex flex-col sm:flex-row gap-3">
+        <button type="submit"
+          class="flex-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold px-6 py-3 transition-colors shadow-sm">
+          Calcular
+        </button>
+        <button type="button" id="clearBtn"
+          class="rounded-lg bg-slate-200 hover:bg-slate-300 active:bg-slate-400 text-slate-700 font-semibold px-6 py-3 transition-colors">
+          Limpiar
+        </button>
+      </div>
+    </form>
+
+    <!-- ===== Resultados (formato factura) ===== -->
+    <section id="resultsCard" class="hidden bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+      <div class="bg-slate-900 text-white px-6 py-4 flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 class="font-semibold">Desglose del precio</h2>
+          <p id="resTariff" class="text-xs text-slate-300 mt-0.5"></p>
+        </div>
+        <div class="text-right">
+          <p class="text-xs font-semibold tracking-wider text-emerald-300">FACTURA PROFORMA</p>
+          <p class="text-[10px] text-slate-400">Formato de referencia tipo DIAN</p>
+        </div>
+      </div>
+      <div class="px-6 py-4">
+        <div class="overflow-x-auto">
+          <table class="w-full text-sm">
+            <tbody>
+              <tr class="border-b border-dashed border-slate-300">
+                <td class="py-2.5 text-slate-600">Precio de compra / costo</td>
+                <td class="py-2.5 text-right font-medium" id="rCost"></td>
+              </tr>
+              <tr class="border-b border-dashed border-slate-300">
+                <td class="py-2.5 text-slate-600">Ganancia <span id="rMargin" class="text-slate-400 text-xs"></span></td>
+                <td class="py-2.5 text-right text-emerald-600 font-medium" id="rGain"></td>
+              </tr>
+              <tr class="border-b-2 border-slate-800">
+                <td class="py-2.5 font-semibold">Precio de venta neto <span class="text-slate-400 text-xs font-normal">(base gravable)</span></td>
+                <td class="py-2.5 text-right font-semibold" id="rNet"></td>
+              </tr>
+              <tr class="border-b border-dashed border-slate-300">
+                <td class="py-2.5 text-slate-600">IVA <span id="rIvaPct" class="text-slate-400 text-xs"></span></td>
+                <td class="py-2.5 text-right" id="rIva"></td>
+              </tr>
+              <tbody id="rSpecificRows"></tbody>
+              <tr class="bg-emerald-50">
+                <td class="py-3.5 pl-3 font-bold text-emerald-900">Precio final al cliente</td>
+                <td class="py-3.5 pr-3 text-right font-bold text-emerald-700 text-xl whitespace-nowrap" id="rTotal"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer class="text-xs text-slate-400 leading-relaxed">
+      <p>
+        Nota: las partidas y tarifas incluidas son datos de ejemplo con fines ilustrativos. Verifica las tarifas vigentes en la DIAN antes de usarlas en producción.
+        Para editarlas, modifica el objeto <code class="bg-slate-200 rounded px-1">TARIFF_TABLE</code> al inicio del script.
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    'use strict';
+
+    /* =====================================================================
+     * TABLA EDITABLE DE PARTIDAS ARANCELARIAS
+     * Formato de cada entrada:
+     *   { code, description, iva, taxes }
+     *   iva:  % de IVA (19, 5 o 0)
+     *   taxes: [{ id, name, value }]  — opcional, vacío si no aplican
+     *     value = % del impuesto específico, calculado sobre el precio de
+     *             venta neto (base gravable), igual que el IVA.
+     * ===================================================================== */
+    const TARIFF_TABLE = [
+      { code: '0407.21', description: 'Huevos frescos de aves de corral',              iva: 0,  taxes: [] },
+      { code: '0901.21', description: 'Café tostado (grano o molido)',                 iva: 5,  taxes: [] },
+      { code: '1006.30', description: 'Arroz semiblanqueado o blanqueado',             iva: 5,  taxes: [] },
+      { code: '1701.99', description: 'Azúcar de caña (refinada)',                     iva: 5,  taxes: [] },
+      { code: '3004.90', description: 'Medicamentos para uso humano',                  iva: 0,  taxes: [] },
+      { code: '6109.10', description: 'Camisetas de punto de algodón',                 iva: 19, taxes: [] },
+      {
+        code: '1905.90', description: 'Snacks y alimentos ultraprocesados',            iva: 19,
+        taxes: [{ id: 'ibua', name: 'IBUA', value: 15 }]
+      },
+      {
+        code: '2202.10', description: 'Bebidas azucaradas (gaseosas, refrescos)',      iva: 19,
+        taxes: [{ id: 'icui', name: 'ICUI', value: 15 }]
+      },
+      {
+        code: '2203.00', description: 'Cerveza de malta',                              iva: 19,
+        taxes: [{ id: 'ic-cerveza', name: 'IC cervezas', value: 25 }]
+      },
+      {
+        code: '2208.30', description: 'Whisky y aguardientes destilados',              iva: 19,
+        taxes: [{ id: 'adv', name: 'ADV', value: 25 }]
+      },
+      {
+        code: '2402.20', description: 'Cigarrillos que contengan tabaco',              iva: 19,
+        taxes: [{ id: 'iccsmr', name: 'ICCSMR', value: 50 }]
+      },
+      {
+        code: '3923.30', description: 'Envases y vasos de plástico de un solo uso',    iva: 19,
+        taxes: [{ id: 'icl', name: 'ICL', value: 10 }]
+      }
+    ];
+
+    /* ===================== Utilidades ===================== */
+    const $ = (id) => document.getElementById(id);
+
+    const fmtCOP = (n) => new Intl.NumberFormat('es-CO', {
+      style: 'currency', currency: 'COP', maximumFractionDigits: 0
+    }).format(n);
+
+    const fmtNum = (n) => new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 }).format(n);
+
+    const fmtPct = (n) => fmtNum(n) + '%';
+
+    const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    }[c]));
+
+    /* ===================== Estado ===================== */
+    let manualTaxes = []; // impuestos específicos agregados en modo manual
+
+    /* ===================== Referencias DOM ===================== */
+    const form          = $('calcForm');
+    const tariffSelect  = $('tariffSelect');
+    const taxBadges     = $('taxBadges');
+    const taxBadgesList = $('taxBadgesList');
+    const manualPanel   = $('manualPanel');
+    const manualIvaSelect = $('manualIvaSelect');
+    const customIvaWrap = $('customIvaWrap');
+    const customIvaInput = $('customIvaInput');
+    const taxNameInput  = $('taxNameInput');
+    const taxValueInput = $('taxValueInput');
+    const addTaxBtn     = $('addTaxBtn');
+    const manualTaxesList = $('manualTaxesList');
+    const costInput     = $('costInput');
+    const marginInput   = $('marginInput');
+    const errorBox      = $('errorBox');
+    const errorList     = $('errorList');
+    const resultsCard   = $('resultsCard');
+    const resTariff     = $('resTariff');
+    const rCost         = $('rCost');
+    const rMargin       = $('rMargin');
+    const rGain         = $('rGain');
+    const rNet          = $('rNet');
+    const rIvaPct       = $('rIvaPct');
+    const rIva          = $('rIva');
+    const rSpecificRows = $('rSpecificRows');
+    const rTotal        = $('rTotal');
+
+    /* ===================== Inicialización: opciones de partida ===================== */
+    TARIFF_TABLE
+      .slice()
+      .sort((a, b) => a.code.localeCompare(b.code))
+      .forEach((entry) => {
+        const opt = document.createElement('option');
+        opt.value = entry.code;
+        opt.textContent = entry.code + ' — ' + entry.description;
+        tariffSelect.appendChild(opt);
+      });
+
+    const customOpt = document.createElement('option');
+    customOpt.value = 'custom';
+    customOpt.textContent = 'Otra partida (configuración manual)';
+    tariffSelect.appendChild(customOpt);
+
+    /* ===================== Badges de impuestos aplicables ===================== */
+    function renderBadges(entry) {
+      const chips = [];
+      chips.push(entry.iva === 0
+        ? { label: 'IVA 0% (bien excluido)', cls: 'bg-slate-100 text-slate-600 border-slate-300' }
+        : { label: 'IVA ' + entry.iva + '%', cls: 'bg-slate-900 text-white border-slate-900' });
+
+      if (entry.taxes.length === 0) {
+        chips.push({ label: 'Sin impuestos específicos', cls: 'bg-slate-100 text-slate-500 border-slate-300' });
+      }
+      entry.taxes.forEach((t) => {
+        chips.push({ label: t.name + ' · ' + t.value + '%', cls: 'bg-amber-50 text-amber-800 border-amber-300' });
+      });
+
+      taxBadgesList.innerHTML = chips
+        .map((c) => '<span class="inline-flex items-center rounded-full border px-3 py-1 text-xs font-medium ' + c.cls + '">' + esc(c.label) + '</span>')
+        .join('');
+    }
+
+    /* ===================== Modo manual ===================== */
+    function renderManualTaxes() {
+      if (manualTaxes.length === 0) {
+        manualTaxesList.innerHTML = '<p class="text-xs text-slate-400">No hay impuestos específicos agregados.</p>';
+        return;
+      }
+      manualTaxesList.innerHTML = manualTaxes.map((t, i) => {
+        return (
+          '<div class="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 text-sm">' +
+            '<div><span class="font-medium">' + esc(t.name) + '</span>' +
+            '<span class="text-slate-500"> · ' + fmtPct(t.value) + '</span></div>' +
+            '<button type="button" data-remove-tax="' + i + '" class="text-red-500 hover:text-red-700 text-xs font-semibold shrink-0">Quitar</button>' +
+          '</div>'
+        );
+      }).join('');
+    }
+
+    function addManualTax() {
+      const name = taxNameInput.value.trim();
+      const value = parseFloat(taxValueInput.value);
+
+      const errors = [];
+      if (!name) errors.push('El nombre del impuesto específico es obligatorio.');
+      if (!isFinite(value) || value <= 0) errors.push('El % del impuesto específico debe ser mayor que 0.');
+
+      if (errors.length) { showErrors(errors); return; }
+
+      manualTaxes.push({ name, value });
+      taxNameInput.value = '';
+      taxValueInput.value = '';
+      renderManualTaxes();
+      hideErrors();
+    }
+
+    /* ===================== Configuración activa ===================== */
+    function getConfig() {
+      const sel = tariffSelect.value;
+      if (!sel) return null;
+      if (sel !== 'custom') {
+        const entry = TARIFF_TABLE.find((e) => e.code === sel);
+        return entry ? { source: entry, ivaPct: entry.iva, taxes: entry.taxes } : null;
+      }
+      let ivaPct;
+      const ivaSel = manualIvaSelect.value;
+      if (ivaSel === 'custom') ivaPct = parseFloat(customIvaInput.value);
+      else ivaPct = parseFloat(ivaSel);
+      return { source: null, ivaPct, taxes: manualTaxes.map((t) => ({ ...t })) };
+    }
+
+    /* ===================== Errores ===================== */
+    function showErrors(messages) {
+      errorList.innerHTML = messages.map((m) => '<li>' + esc(m) + '</li>').join('');
+      errorBox.classList.remove('hidden');
+    }
+
+    function hideErrors() {
+      errorBox.classList.add('hidden');
+      errorList.innerHTML = '';
+    }
+
+    /* ===================== Cálculo =====================
+     * Orden de las fórmulas (factura real):
+     *   neto = costo * (1 + %ganancia/100)
+     *   ganancia = neto - costo
+     *   IVA = neto * %IVA
+     *   específico = neto * %específico
+     *   total = neto + IVA + específicos
+     * ==================================================== */
+    function calculate(config, cost, margin) {
+      const net = Math.round(cost * (1 + margin / 100));
+      const gain = net - cost;
+      const iva = Math.round(net * config.ivaPct / 100);
+      const specific = config.taxes.map((t) => ({
+        name: t.name,
+        amount: Math.round(net * t.value / 100)
+      }));
+      const specificTotal = specific.reduce((sum, t) => sum + t.amount, 0);
+      const total = net + iva + specificTotal;
+      return { net, gain, ivaPct: config.ivaPct, iva, specific, total };
+    }
+
+    function renderResults(config, result, cost, margin) {
+      if (config.source) {
+        resTariff.textContent = 'Partida ' + config.source.code + ' — ' + config.source.description;
+      } else {
+        resTariff.textContent = 'Partida no catalogada — impuestos configurados manualmente';
+      }
+
+      rCost.textContent = fmtCOP(Math.round(cost));
+      rMargin.textContent = '(' + fmtPct(margin) + ')';
+      rGain.textContent = fmtCOP(result.gain);
+      rNet.textContent = fmtCOP(result.net);
+      rIvaPct.textContent = '(' + fmtPct(result.ivaPct) + ')';
+      rIva.textContent = fmtCOP(result.iva);
+
+      if (result.specific.length === 0) {
+        rSpecificRows.innerHTML =
+          '<tr><td colspan="2" class="py-2.5 text-slate-400 text-xs">Sin impuestos específicos aplicables.</td></tr>';
+      } else {
+        rSpecificRows.innerHTML = result.specific.map((t) => {
+          return (
+            '<tr class="border-b border-dashed border-slate-300">' +
+              '<td class="py-2.5 text-slate-600">' + esc(t.name) + ' <span class="text-slate-400 text-xs">(ad valorem)</span></td>' +
+              '<td class="py-2.5 text-right">' + fmtCOP(t.amount) + '</td>' +
+            '</tr>'
+          );
+        }).join('');
+      }
+
+      rTotal.textContent = fmtCOP(result.total);
+    }
+
+    /* ===================== Handlers ===================== */
+    function onTariffChange() {
+      const sel = tariffSelect.value;
+      hideErrors();
+      if (!sel) {
+        manualPanel.classList.add('hidden');
+        taxBadges.classList.add('hidden');
+        taxBadgesList.innerHTML = '';
+        return;
+      }
+      if (sel === 'custom') {
+        manualPanel.classList.remove('hidden');
+        taxBadges.classList.add('hidden');
+        taxBadgesList.innerHTML = '';
+        return;
+      }
+      manualPanel.classList.add('hidden');
+      const entry = TARIFF_TABLE.find((e) => e.code === sel);
+      if (entry) {
+        renderBadges(entry);
+        taxBadges.classList.remove('hidden');
+      }
+    }
+
+    function onCalculate(e) {
+      e.preventDefault();
+      hideErrors();
+
+      const config = getConfig();
+      const cost = parseFloat(costInput.value);
+      const margin = parseFloat(marginInput.value);
+
+      const errors = [];
+      if (!config) errors.push('Selecciona una partida arancelaria o la opción de configuración manual.');
+      if (!isFinite(cost) || cost <= 0) errors.push('Ingresa un precio de compra / costo mayor que 0.');
+      if (!isFinite(margin) || margin < 0) errors.push('Ingresa el porcentaje de ganancia (puede ser 0).');
+      if (config && config.source === null) {
+        if (!isFinite(config.ivaPct) || config.ivaPct < 0 || config.ivaPct > 100)
+          errors.push('Ingresa un % de IVA válido (entre 0 y 100).');
+        config.taxes.forEach((t, i) => {
+          if (!t.name.trim()) errors.push('El impuesto específico #' + (i + 1) + ' no tiene nombre.');
+          if (!isFinite(t.value) || t.value <= 0) errors.push('El impuesto específico "' + (t.name || '#' + (i + 1)) + '" debe tener un % mayor que 0.');
+        });
+      }
+
+      if (errors.length) {
+        showErrors(errors);
+        return;
+      }
+
+      const result = calculate(config, cost, margin);
+      renderResults(config, result, cost, margin);
+      resultsCard.classList.remove('hidden');
+      resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function onClear() {
+      form.reset();
+      manualTaxes = [];
+      renderManualTaxes();
+      customIvaWrap.classList.add('hidden');
+      taxBadges.classList.add('hidden');
+      taxBadgesList.innerHTML = '';
+      manualPanel.classList.add('hidden');
+      resultsCard.classList.add('hidden');
+      hideErrors();
+    }
+
+    /* ===================== Listeners ===================== */
+    tariffSelect.addEventListener('change', onTariffChange);
+
+    manualIvaSelect.addEventListener('change', () => {
+      customIvaWrap.classList.toggle('hidden', manualIvaSelect.value !== 'custom');
+    });
+
+    addTaxBtn.addEventListener('click', addManualTax);
+
+    manualTaxesList.addEventListener('click', (e) => {
+      const idx = e.target.dataset.removeTax;
+      if (idx !== undefined) {
+        manualTaxes.splice(Number(idx), 1);
+        renderManualTaxes();
+      }
+    });
+
+    form.addEventListener('submit', onCalculate);
+    $('clearBtn').addEventListener('click', onClear);
+
+    renderManualTaxes();
+  </script>
+</body>
+</html>
