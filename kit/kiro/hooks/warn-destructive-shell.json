@@ -1,0 +1,17 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "warn-destructive-shell",
+      "description": "Surface destructive shell commands in the session. Enforcement lives in agent permissions; this hook only warns and never writes.",
+      "trigger": "PreToolUse",
+      "matcher": "^(execute_bash|execute_pwsh)$",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/bin/warn-destructive-shell.js"
+      },
+      "timeout": 15,
+      "enabled": true
+    }
+  ]
+}

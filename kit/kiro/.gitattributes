@@ -1,0 +1,8 @@
+# Node hook entrypoints must stay LF.
+*.js text eol=lf
+
+# Keep the kit's structured text LF in the repository.
+*.md text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf

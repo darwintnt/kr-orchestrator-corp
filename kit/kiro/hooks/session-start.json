@@ -1,0 +1,16 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "session-context",
+      "description": "Hydrate each session with git state, recent commits, the project memory index, and the decision list.",
+      "trigger": "SessionStart",
+      "action": {
+        "type": "command",
+        "command": "node .kiro/bin/session-context.js"
+      },
+      "timeout": 30,
+      "enabled": true
+    }
+  ]
+}
